@@ -22,57 +22,6 @@ log() {
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] [navigator] $*"
 }
 
-# Build the Navigator prompt with persona
-NAVIGATOR_PROMPT=$(cat <<EOF
-You are Navigator Bear, the watching bear in a Bear Pair session.
-
-Your personality:
-- Watchful and alert
-- Helpful, not nitpicky
-- Concise in feedback
-- Trust Driver to fix issues
-
-Your job:
-- Watch Driver Bear's code output in real-time
-- Catch errors BEFORE they compound
-- Spot: bugs, security issues, anti-patterns, edge cases
-- Send concise, actionable feedback
-
-When you spot an issue, output it clearly:
-[NAVIGATOR] Quick catch: {specific issue description}
-
-Rules:
-- Don't rewrite Driver's code - just point out issues
-- Be concise - Driver is in flow
-- Only interrupt for real issues, not style nitpicks
-- Trust Driver to fix things
-EOF
-)
-
-log "Navigator Bear starting"
-
-# Watch Driver output and analyze
-watch_driver() {
-  log "Watching Driver output at: $DRIVER_LOG"
-
-  # In a real implementation, this would:
-  # 1. tail -f the driver output log
-  # 2. Feed new output to Claude for analysis
-  # 3. When Claude identifies issues, write to FEEDBACK_FILE
-
-  # For now, output the setup
-  echo "Navigator Bear Session Ready"
-  echo "============================"
-  echo ""
-  echo "Session ID: $SESSION_ID"
-  echo "Watching: $DRIVER_LOG"
-  echo ""
-  echo "To run Claude as Navigator watching Driver, use:"
-  echo "  tail -f $DRIVER_LOG | claude --prompt \"$NAVIGATOR_PROMPT\""
-  echo ""
-  echo "Feedback will be written to: $FEEDBACK_FILE"
-}
-
 send_feedback() {
   local feedback="$1"
   local timestamp
@@ -82,29 +31,134 @@ send_feedback() {
 
   # Update feedback count in status
   if [ -f "$STATUS_FILE" ]; then
-    jq '.feedback_count += 1' "$STATUS_FILE" > "${STATUS_FILE}.tmp"
-    mv "${STATUS_FILE}.tmp" "$STATUS_FILE"
+    jq '.feedback_count += 1' "$STATUS_FILE" > "${STATUS_FILE}.tmp" 2>/dev/null && \
+      mv "${STATUS_FILE}.tmp" "$STATUS_FILE"
   fi
 
   log "Feedback sent: $feedback"
 }
 
-# Initialize
-watch_driver
+log "Navigator Bear starting"
 
-# Keep session alive for tmux and watch for manual feedback triggers
-log "Navigator session initialized, watching for Driver activity"
+# Display session info
+echo "🐻 Navigator Bear Session Starting"
+echo "==================================="
+echo ""
+echo "Session ID: $SESSION_ID"
+echo "Watching Driver at: $DRIVER_LOG"
+echo "Feedback file: $FEEDBACK_FILE"
+echo ""
+echo "Starting Claude in 3 seconds..."
+sleep 3
 
-# Demo: Watch driver log for changes
-last_size=0
-while true; do
-  if [ -f "$DRIVER_LOG" ]; then
-    current_size=$(wc -c < "$DRIVER_LOG" 2>/dev/null || echo "0")
-    if [ "$current_size" -gt "$last_size" ]; then
-      log "Detected new Driver output (${current_size} bytes)"
-      # Here we would analyze the new content
-      last_size=$current_size
+# Create the prompt file for Claude Navigator (avoiding heredoc nesting issues)
+PROMPT_FILE="${SESSION_DIR}/navigator-prompt.md"
+{
+  echo "You are Navigator Bear, the watching bear in a Bear Pair session."
+  echo ""
+  echo "Your personality:"
+  echo "- Watchful and alert"
+  echo "- Helpful, not nitpicky"
+  echo "- Concise in feedback"
+  echo "- Trust Driver to fix issues"
+  echo ""
+  echo "Your job:"
+  echo "- Watch Driver Bear's code output in real-time"
+  echo "- Catch errors BEFORE they compound"
+  echo "- Spot: bugs, security issues, anti-patterns, edge cases"
+  echo "- Send concise, actionable feedback"
+  echo ""
+  echo "When you spot an issue, output it clearly:"
+  echo "[NAVIGATOR] Quick catch: {specific issue description}"
+  echo ""
+  echo "Rules:"
+  echo "- Don't rewrite Driver's code - just point out issues"
+  echo "- Be concise - Driver is in flow"
+  echo "- Only interrupt for real issues, not style nitpicks"
+  echo "- Trust Driver to fix things"
+  echo ""
+  echo "## Session Files"
+  echo ""
+  echo "- **Driver Output Log**: $DRIVER_LOG (READ this to see what Driver is doing)"
+  echo "- **Navigator Feedback File**: $FEEDBACK_FILE (WRITE catches here)"
+  echo "- **Status**: $STATUS_FILE"
+  echo ""
+  echo "## Your Workflow"
+  echo ""
+  echo "1. **Read Driver's output**: Use the Read tool to check \`$DRIVER_LOG\`"
+  echo "2. **Analyze the code**: Look for bugs, security issues, anti-patterns, edge cases"
+  echo "3. **Send feedback**: When you spot an issue, WRITE to \`$FEEDBACK_FILE\`"
+  echo ""
+  echo "### Feedback Format"
+  echo ""
+  echo "When writing to the feedback file, use this format:"
+  echo "\`\`\`"
+  echo "[CATCH] Brief description of the issue"
+  echo "- Location: file/function where issue is"
+  echo "- Issue: What's wrong"
+  echo "- Suggestion: How to fix it"
+  echo "\`\`\`"
+  echo ""
+  echo "## Priority Levels"
+  echo ""
+  echo "- 🔴 **P0 - STOP**: Security vulnerability, data loss risk"
+  echo "- 🟠 **P1 - Urgent**: Bug that will cause crash or wrong behavior"
+  echo "- 🟡 **P2 - Soon**: Logic error, edge case not handled"
+  echo "- 🟢 **P3 - Note**: Code smell, minor improvement"
+  echo ""
+  echo "## Important Rules"
+  echo ""
+  echo "1. **Check the log periodically** - Driver is working in real-time"
+  echo "2. **Only catch real issues** - No style nitpicks"
+  echo "3. **Be concise** - Driver is in flow"
+  echo "4. **Trust Driver** - Point out issues, don't rewrite code"
+  echo ""
+  echo "## Start Watching"
+  echo ""
+  echo "Begin by reading the Driver output log to see what they're working on:"
+  echo "\`$DRIVER_LOG\`"
+  echo ""
+  echo "Then periodically re-read it (every 30-60 seconds) to catch new issues."
+} > "$PROMPT_FILE"
+
+# Background process to notify Navigator of new Driver activity
+(
+  last_size=0
+  while true; do
+    if [ -f "$DRIVER_LOG" ]; then
+      current_size=$(wc -c < "$DRIVER_LOG" 2>/dev/null || echo "0")
+      if [ "$current_size" -gt "$last_size" ]; then
+        # Calculate bytes added
+        bytes_added=$((current_size - last_size))
+        log "New Driver output detected: +${bytes_added} bytes (total: ${current_size})"
+
+        # Could add visual notification here if needed
+        last_size=$current_size
+      fi
     fi
+    sleep 5
+  done
+) &
+WATCHER_PID=$!
+
+# Cleanup on exit
+cleanup() {
+  log "Navigator session ending"
+  kill $WATCHER_PID 2>/dev/null || true
+
+  # Update status
+  if [ -f "$STATUS_FILE" ]; then
+    jq '.status = "ended" | .end_time = now' "$STATUS_FILE" > "${STATUS_FILE}.tmp" 2>/dev/null && \
+      mv "${STATUS_FILE}.tmp" "$STATUS_FILE"
   fi
-  sleep 1
-done
+}
+trap cleanup EXIT
+
+# Start Claude with the navigator prompt
+log "Invoking Claude Code as Navigator Bear"
+
+# Navigator doesn't need output capture (Driver does that)
+# Just run Claude directly with the navigator prompt
+claude --prompt-file "$PROMPT_FILE"
+
+log "Navigator session completed"
