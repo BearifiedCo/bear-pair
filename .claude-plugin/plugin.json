@@ -1,0 +1,12 @@
+{
+  "name": "bear-pair",
+  "version": "1.0.0",
+  "description": "Real-time dual Claude orchestration for AI pair programming. Driver Bear codes while Navigator Bear watches and catches errors in real-time.",
+  "author": {
+    "name": "BearifiedCo",
+    "url": "https://github.com/bearifiedco"
+  },
+  "repository": "https://github.com/bearifiedco/bear-pair",
+  "license": "MIT",
+  "keywords": ["pair-programming", "code-review", "dual-claude", "real-time", "orchestration"]
+}

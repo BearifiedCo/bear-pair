@@ -1,0 +1,29 @@
+{
+  "description": "Bear Pair session lifecycle hooks - checks for pending Navigator feedback before allowing Driver to stop",
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/scripts/check-navigator-feedback.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/scripts/session-init.sh",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}
