@@ -140,6 +140,32 @@ bear-pair/
 └── README.md
 ```
 
+## Bear Suite Integration
+
+Bear Pair works with Bear Call for critical escalations:
+
+```
+Bear Pair running
+        ↓
+Navigator catches critical issue
+        ↓
+/bear-escalate "Security vuln in auth code" --urgency critical
+        ↓
+Human's phone rings (Bear Call)
+        ↓
+Human provides guidance
+        ↓
+Bears continue with input
+```
+
+**Commands:**
+- `/bear-escalate <reason> --urgency <level>` - Navigator escalates to human
+
+**Install both for full Bear Suite:**
+```bash
+claude --plugin-dir ~/plugins/bear-pair --plugin-dir ~/plugins/bear-call
+```
+
 ## Future: Cross-Machine Mode
 
 Bear Pair can be extended to work across machines using Tailscale:
